@@ -1,13 +1,14 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 
 void main() {
   runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const MyApp({Key? key}) : super(key: key);
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -16,114 +17,101 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: Corps(),
+      home: MainPage(),
     );
   }
 }
 
-class Corps extends StatefulWidget {
-  const Corps({super.key});
+class MainPage extends StatefulWidget {
+  const MainPage({Key? key}) : super(key: key);
 
   @override
-  State<Corps> createState() => _CorpsState();
+  _MainPageState createState() => _MainPageState();
 }
 
-class _CorpsState extends State<Corps> {
-  var message1 = "";
-  var message2 = "";
-  var nbLike = 0;
-  var nbDisLikes = 0;
-  String inputTxt = "";
+class _MainPageState extends State<MainPage> {
+  int _selectedIndex = 0;
+  List<dynamic> players = [];
 
-  onClick(btn) {
-    setState(() {
-      if (btn == "btn1") {
-        message1 = "Btn 1 clicked";
-      } else {
-        message2 = "Btn 2 clicked";
-      }
-    });
+  @override
+  void initState() {
+    super.initState();
+    fetchPlayers();
   }
 
-  onLikeDislike(type) {
+  Future<void> fetchPlayers() async {
+    final response = await http.get(Uri.parse('https://randomuser.me/api/?results=10'));
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> data = jsonDecode(response.body);
+      setState(() {
+        players = data['results'];
+      });
+    } else {
+      throw Exception('Failed to load players');
+    }
+  }
+
+  void _onItemTapped(int index) {
     setState(() {
-      if (type == "add") {
-        nbLike = nbLike + 1;
-      } else {
-        nbDisLikes = nbDisLikes + 1;
-      }
+      _selectedIndex = index;
     });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: AppBar(
-          title: Text("Tester les Buttons"),
+      appBar: AppBar(
+        title: Text("Players"),
+      ),
+      body: _selectedIndex == 0
+          ? players != null
+          ? ListView.builder(
+        itemCount: players.length,
+        itemBuilder: (BuildContext context, int index) {
+          final player = players[index];
+          return ListTile(
+            leading: CircleAvatar(
+              backgroundImage: NetworkImage(player['picture']['thumbnail']),
+            ),
+            title: Text('${player['name']['first']} ${player['name']['last']}'),
+            subtitle: Text(player['email']),
+            onTap: () {
+              // Navigate to player details page
+            },
+          );
+        },
+      )
+          : Center(child: CircularProgressIndicator())
+          : _selectedIndex == 1
+          ? Center(
+        child: TextField(
+          decoration: InputDecoration(
+            hintText: 'Enter something',
+          ),
         ),
-        body: Column(children: [
-          ElevatedButton(
-            onPressed: () {
-              onClick("btn1");
-            },
-            child: Text("Btn 1"),
+      )
+          : Center(
+        child: Text('Profile Page'),
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        items: const <BottomNavigationBarItem>[
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home),
+            label: 'Home',
           ),
-          Text(
-            message1,
-            style: TextStyle(
-              fontSize: 20,
-              color: Colors.blue,
-            ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.search),
+            label: 'Search',
           ),
-          Divider(
-            height: 30,
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person),
+            label: 'Profile',
           ),
-          ElevatedButton(
-            onPressed: () => onClick("btn2"),
-            child: Text("Btn 2"),
-          ),
-          Text(
-            message2,
-            style: TextStyle(
-              fontSize: 20,
-              color: Colors.red,
-            ),
-          ),
-          Divider(height: 30),
-          IconButton(
-            onPressed: () {
-              onLikeDislike("add");
-            },
-            icon: Icon(Icons.thumb_up),
-            color: Colors.green,
-          ),
-          Text(nbLike.toString()),
-          SizedBox(width: 20),
-          IconButton(
-            onPressed: () {
-              onLikeDislike("remove");
-            },
-            icon: Icon(Icons.thumb_down),
-            color: Colors.red,
-          ),
-          Text(nbDisLikes.toString()),
-          SizedBox(height: 20),
-          Container(
-            width: 400,
-            child: TextField(
-                onChanged: (value) {
-                  setState(() {
-                    inputTxt = value;
-                  });
-                },
-                decoration: InputDecoration(
-                  hintText: 'Enter text',
-                  labelText: 'Text',
-                  border: OutlineInputBorder(),
-                ),
-                style: TextStyle(color: Colors.black)),
-          ),
-          Text(inputTxt),
-        ]));
+        ],
+        currentIndex: _selectedIndex,
+        selectedItemColor: Colors.deepPurple,
+        onTap: _onItemTapped,
+      ),
+    );
   }
 }
